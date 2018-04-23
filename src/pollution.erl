@@ -9,7 +9,7 @@
 -author("mikolaj").
 
 %% API
--export([createMonitor/0,addValue/5,addStation/3,removeValue/4,getOneValue/4,getStationMean/3]).
+-export([createMonitor/0,addValue/5,addStation/3,removeValue/4,getOneValue/4,getStationMean/3,getDailyMean/3,getHourlyMean/3]).
 -record(measure,{name,type,value,date}).
 
 createMonitor() ->
@@ -57,12 +57,25 @@ getOneValue(Type,Date,Name,#{names:= Names, measures := Measures}) ->
   end.
 
 
-getStationMean(Type,Name,#{names := Names} = Monitor) ->
+getStationMean(Type, Name, #{names := Names,measures := Measures}) ->
   case maps:is_key(Name,Names) of
-    true -> meanHelper(Type,Name,Monitor);
+    true -> meanHelper(lists:filter(fun(X) -> X#measure.type == Type andalso X#measure.name == Name end,Measures));
     false -> {error,"There is no station with such name!"}
   end.
+meanHelper([]) -> 0;
 
-meanHelper(Type,Name,#{measures := Measures}) ->
-  A = lists:filter(fun(X) -> X#measure.type == Type andalso X#measure.name == Name end,Measures),
-  lists:foldl(fun(X,Acc) -> X + Acc end,0,lists:map(fun(X) -> X#measure.value end,))/length(A).
+meanHelper([H|T]) ->
+  lists:foldl(fun(X,Acc) -> X + Acc end,0,lists:map(fun(X) -> X#measure.value end,[H|T]))/length([H|T]).
+
+
+getDailyMean(Type, Day, #{measures := Measures})->
+  case meanHelper(lists:filter(fun(X) -> X#measure.type == Type andalso element(1,X#measure.date) == Day end,Measures)) of
+    0 -> {error,"No measures of this type were saved at this day."};
+    X -> X
+  end.
+
+getHourlyMean(Type,Hour,#{measures := Measures}) ->
+  case meanHelper(lists:filter(fun(X) -> X#measure.type == Type andalso element(1,element(2,X#measure.date)) == Hour end,Measures)) of
+    0 -> {error,"No measures of this type were saved at this particular hour at any day."};
+    X -> X
+  end.
