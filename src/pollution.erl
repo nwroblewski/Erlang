@@ -9,7 +9,7 @@
 -author("mikolaj").
 
 %% API
--export([createMonitor/0,addValue/5,addStation/3,removeValue/4,getOneValue/4]).
+-export([createMonitor/0,addValue/5,addStation/3,removeValue/4,getOneValue/4,getStationMean/3]).
 -record(measure,{name,type,value,date}).
 
 createMonitor() ->
@@ -36,6 +36,7 @@ addValue(Name,Date,Type,Value,#{names := Names, measures := Measures } = Monitor
     false -> {error,"There is no station with such name!"} %this one won't actually ever happen, but it needs to be here :/
   end.
 
+
 removeValue({_,_} = Coord,Date,Type,#{coords := Coords} = Monitor) ->
   case maps:is_key(Coord,Coords) of
     true -> removeValue(maps:get(Coord,Coords),Date,Type,Monitor);
@@ -47,8 +48,21 @@ removeValue(Name,Date,Type,#{measures := Measures} = Monitor) ->
 removingFilter(X,Name,Date,Type) ->  %X is a record of type measure
   not (X#measure.date == Date andalso X#measure.type == Type andalso X#measure.name == Name).
 
-getOneValue(Type,Date,Name,#{measures := Measures} = Monitor) ->
-  [H|_] = lists:filter(fun(X) -> X#measure.name == Name andalso X#measure.type == Type andalso X#measure.date == Date end, Measures),
-  {H#measure.type,H#measure.value,H#measure.date}.
 
-getStationMean(Type,)
+getOneValue(Type,Date,Name,#{names:= Names, measures := Measures}) ->
+  case maps:is_key(Name,Names) of
+    true -> [H|_] = lists:filter(fun(X) -> X#measure.name == Name andalso X#measure.type == Type andalso X#measure.date == Date end, Measures),
+      {H#measure.type,H#measure.value,H#measure.date};
+    false -> "There is no station with such name!"
+  end.
+
+
+getStationMean(Type,Name,#{names := Names} = Monitor) ->
+  case maps:is_key(Name,Names) of
+    true -> meanHelper(Type,Name,Monitor);
+    false -> {error,"There is no station with such name!"}
+  end.
+
+meanHelper(Type,Name,#{measures := Measures}) ->
+  A = lists:filter(fun(X) -> X#measure.type == Type andalso X#measure.name == Name end,Measures),
+  lists:foldl(fun(X,Acc) -> X + Acc end,0,lists:map(fun(X) -> X#measure.value end,))/length(A).
